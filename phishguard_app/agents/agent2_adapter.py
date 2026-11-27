@@ -10,6 +10,7 @@ archive directly to disk from the public GitHub Release v1.0-agent2-model,
 verifies its SHA-256 checksum, and extracts it safely. Never fabricates scores.
 """
 import hashlib
+import math
 import logging
 import os
 import shutil
@@ -32,7 +33,7 @@ DEFAULT_MODEL_URL = (
 DEFAULT_MODEL_SHA256 = (
     "f0d715fa7f53a8bad16b5d37315b18f6001ade7dbe88ecd7b338c74fdc711a38"
 )
-_REQUIRED_MODEL_FILES = ("config.json", "model.safetensors")
+_REQUIRED_MODEL_FILES = ("config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json")
 
 
 class Agent2Adapter:
@@ -67,7 +68,7 @@ class Agent2Adapter:
     @staticmethod
     def _has_valid_local_model(directory: Path) -> bool:
         return directory.is_dir() and all(
-            (directory / fname).is_file() for fname in _REQUIRED_MODEL_FILES
+            (directory / fname).is_file() and (directory / fname).stat().st_size > 0 for fname in _REQUIRED_MODEL_FILES
         )
 
     @staticmethod
@@ -277,7 +278,7 @@ class Agent2Adapter:
             return {
                 "available":  True,
                 "status":     "completed",
-                "text_score": float(score),
+                "text_score": float(score) if math.isfinite(float(score)) else (_ for _ in ()).throw(ValueError("Non-finite P(Not Safe)")),
             }
         except Exception as exc:
             logger.exception("Agent 2 inference error")
