@@ -1,0 +1,23 @@
+# PHISHGUARD app requirements (exact verified Python 3.13.3 environment)
+# Install from REPO ROOT:
+#   pip install torch==2.15.0+cpu --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r phishguard_app/requirements_app.txt
+#
+# Shared Agent 1 + Agent 3 environment (must match agent1_binary_meta.json and agent3_meta.json):
+numpy==2.1.3
+pandas==2.3.3
+scikit-learn==1.6.1
+scipy==1.16.3
+joblib==1.6.0
+
+# Agent 2 (DistilBERT CPU inference; install torch==2.15.0+cpu above first)
+torch>=2.15.0,<2.16.0
+transformers==5.24.1
+safetensors==0.8.0
+
+# App framework & .eml parsing
+streamlit==1.67.0
+python-dateutil==4.0.0
+
+# Testing
+pytest==9.2.0

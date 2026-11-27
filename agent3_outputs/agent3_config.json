@@ -1,0 +1,21 @@
+{
+  "feature_order": [
+    "nb_score",
+    "text_score"
+  ],
+  "model_features": [
+    "nb_logit",
+    "text_logit"
+  ],
+  "logit_transform": {
+    "type": "clipped_logit",
+    "eps": 1e-06,
+    "clip": 10.0
+  },
+  "decision_threshold": 0.5,
+  "label_convention": {
+    "0": "Safe",
+    "1": "Not Safe"
+  },
+  "not_safe_proba_column_index": 1
+}
