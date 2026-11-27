@@ -22,3 +22,8 @@ Agent 3 is the decision-fusion component of the pipeline. It combines the phishi
 ```bash
 pip install -r requirements.txt
 python build_agent3_handoff.py
+### Integration Interface
+
+* **Inputs:** `nb_score` (Agent 1 phishing probability) and `text_score` (Agent 2 phishing probability), passed in feature order `["nb_score", "text_score"]`.
+* **Transformation & Model:** Each score is converted via clipped logit (`eps=1e-6`, `clip=10.0`) into `nb_logit` and `text_logit`, then scored with `agent3_outputs/agent3_logreg.joblib` (`C=0.1`) using a fixed decision threshold of `0.5`.
+* **Outputs:** Predicted probability (`P("Not Safe")`, class index `1`) and binary label (`0`: `"Safe"`, `1`: `"Not Safe"`).
