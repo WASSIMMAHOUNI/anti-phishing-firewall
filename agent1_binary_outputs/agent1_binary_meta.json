@@ -1,0 +1,88 @@
+{
+  "version": "8.0.0-binary",
+  "class_order": [
+    "safe",
+    "not_safe"
+  ],
+  "selected_config": {
+    "feature_set": "compact_recv",
+    "n_bins": 16,
+    "alpha": 1.0,
+    "lik_scale": 1.0,
+    "group_weighting": "flat",
+    "subject_tokens": true,
+    "feat_bound": 2.5,
+    "max_missing_log_odds": 1.0
+  },
+  "temperature": 1.5715533714992977,
+  "decision_rule": "f1_opt",
+  "threshold_logit": 0.10000000000000009,
+  "threshold_info": {
+    "mode_used": "f1_opt",
+    "feasible": true,
+    "threshold_prob": 0.52497918747894,
+    "f1": 0.9492222650726314,
+    "macro_f1": 0.9412687953650964,
+    "precision": 0.9422694094226941,
+    "recall": 0.9562784915043514,
+    "fpr": 0.07564205457463885
+  },
+  "training_rows": 34256,
+  "cv_grouping": "identity (domain / free-mail address)",
+  "seed": 42,
+  "n_splits": 5,
+  "n_inner": 4,
+  "nested_grid_mode": "full",
+  "nested_candidates": 96,
+  "quick_search": false,
+  "export_columns": [
+    "email_id",
+    "split",
+    "nb_score"
+  ],
+  "detailed_columns": [
+    "email_id",
+    "split",
+    "p_safe",
+    "nb_score",
+    "nb_logit",
+    "pred_class",
+    "header_completeness",
+    "insufficient_evidence"
+  ],
+  "nested_sender_disjoint_metrics": {
+    "accuracy": 0.9404483886034564,
+    "precision": 0.941263674470913,
+    "recall": 0.9538437629506838,
+    "f1": 0.9475119641846343,
+    "macro_f1": 0.9393499914021735,
+    "roc_auc": 0.9867430349573395,
+    "ap": 0.9895957477786946,
+    "fpr": 0.07684590690208667,
+    "fnr": 0.04615623704931621,
+    "log_loss": 0.14598179725694882,
+    "ece": 0.008705855061623712
+  },
+  "validation_metrics": {
+    "accuracy": 0.9512261580381471,
+    "precision": 0.9558397683397684,
+    "recall": 0.9576885880077369,
+    "f1": 0.9567632850241546,
+    "macro_f1": 0.9504128925120774,
+    "roc_auc": 0.9900587424568419,
+    "ap": 0.9921368198891685,
+    "fpr": 0.05711610486891386,
+    "fnr": 0.04231141199226306,
+    "log_loss": 0.12500712649799392,
+    "ece": 0.008818403649020597
+  },
+  "libraries": {
+    "python": "3.13.3",
+    "numpy": "2.1.3",
+    "pandas": "2.3.3",
+    "sklearn": "1.6.1",
+    "scipy": "1.16.3"
+  },
+  "dataset_sha256": "95155f7d9ab86220f08a444e37ec2d7b8965ec88ab51834a03544c8894b67d0f",
+  "module_sha256": "d1ec6ed97969aca7eb4b47e80ebb1baae2b212748f1275e1d4771bfaa6d1cfd9"
+}

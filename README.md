@@ -66,12 +66,19 @@ flowchart LR
 
 ```text
 anti-phishing-firewall/
-├── .gitignore                  # Excludes data/, models/, and virtual environments
-├── Agent1_Binary.ipynb         # Finalized, executed binary Agent 1 notebook (v8.0.0-binary)
-├── inspect_data.py             # Exploratory inspection script for raw email and webpage CSVs
-├── make_dataset.py             # Shared dataset builder producing data/processed/emails_clean.csv
-├── requirements.txt            # Python package dependencies
-└── README.md                   # Project documentation
+├── .gitignore                      # Excludes data/, models/, and virtual environments
+├── Agent1_Binary.ipynb             # Finalized, executed binary Agent 1 notebook (v8.0.0-binary)
+├── agent1_binary_outputs/          # Saved Agent 1 artifacts for Agent 3 and PHISHGUARD UI
+│   ├── agent1_header.py            # Standalone feature extractor & K=2 Naive Bayes module
+│   ├── agent1_binary_model.joblib  # Frozen binary model bundle (requires agent1_header.py)
+│   ├── agent1_scores.csv           # Contract scores (email_id, split, nb_score) for val & test
+│   ├── agent1_scores_detailed.csv  # Detailed scores + nb_logit, pred_class, header_completeness
+│   ├── agent1_binary_meta.json     # Reproducibility metadata & verified metrics
+│   └── reference_examples.json     # 5 real validation examples for smoke-testing
+├── inspect_data.py                 # Exploratory inspection script for raw email and webpage CSVs
+├── make_dataset.py                 # Shared dataset builder producing data/processed/emails_clean.csv
+├── requirements.txt                # Python 3.13.3 package versions matching the saved .joblib
+└── README.md                       # Project documentation
 ```
 
 *(Agent 2's `text_agent.py`, `text_baseline.py`, and `notebooks/train_transformer.ipynb` reside on `main`; Agent 3 and end-to-end integration files will be added as development progresses.)*
@@ -81,9 +88,9 @@ anti-phishing-firewall/
 ## Technologies
 
 ### Currently Used (Confirmed in Repository)
-- **Language:** Python 3
-- **Data Processing & Numerics:** `pandas`, `numpy`, `scipy`, `python-dateutil`, `tzdata`
-- **Machine Learning & Serialization:** `scikit-learn`, `joblib`, `cloudpickle`
+- **Language:** Python 3.13 (`3.13.3` used to generate and serialize the saved Agent 1 `.joblib` model)
+- **Data Processing & Numerics:** `pandas==2.3.3`, `numpy==2.1.3`, `scipy==1.16.3`, `python-dateutil==4.0.0`, `pytz==2026.6`, `tzdata==2026.6`
+- **Machine Learning & Serialization:** `scikit-learn==1.6.1`, `joblib==1.6.0`, `cloudpickle==3.1.3`
 - **Development Environment:** Jupyter Notebook
 
 ### Planned for Agent 3 (Not Yet Implemented)
@@ -121,6 +128,29 @@ This generates `data/processed/emails_clean.csv` with a fixed `70% / 15% / 15%` 
 
 ### 3. Running Agent 1
 Open `Agent1_Binary.ipynb` in Jupyter (or Kaggle). If running locally, it automatically searches `data/processed/emails_clean.csv`. Executing the notebook generates `agent1_binary_outputs/agent1_scores.csv`, `agent1_scores_detailed.csv`, `agent1_binary_model.joblib`, `agent1_header.py`, and `agent1_binary_meta.json` independently of Agent 2.
+
+### 4. Loading Agent 1 Without Re-Running Training (Agent 3 & PHISHGUARD Interface)
+Pre-generated model artifacts are stored in `agent1_binary_outputs/`. Keep `agent1_header.py` in the same folder (or on `sys.path`) when loading `agent1_binary_model.joblib`:
+
+```python
+import sys
+sys.path.insert(0, "agent1_binary_outputs")
+from agent1_header import HeaderAgent, score_email
+
+agent = HeaderAgent.load("agent1_binary_outputs/agent1_binary_model.joblib")
+nb_score = score_email(agent, {
+    "sender": "Security <support@paypa1.com>",
+    "receiver": "user@example.com",
+    "date": "Mon, 12 Oct 2026 14:00:00 +0000",
+    "subject": "Verify your account"
+})
+```
+
+- **Input keys:** `sender`, `receiver` (not `recipient`), `date`, `subject`.
+- **Output:** `float` in `[0, 1]` = calibrated `P(Not Safe)`.
+- **Missing or malformed headers:** Missing or unparseable fields safely abstain from likelihood updates without crashing or distorting non-missing counts (`"undisclosed-recipients"` is preserved as its own state).
+- **Completeness warnings (`predict_detailed`):** `agent.predict_detailed([email])` also returns `header_completeness` (fraction of present headers in `0.25..1.0`) and `insufficient_evidence` (`1` when `header_completeness <= 0.50`) so the PHISHGUARD interface can warn when headers are sparse.
+- **Threshold & Agent 3 usage:** Agent 1's operating threshold is log-odds `0.100` (probability `~0.525`, `f1_opt`). **Agent 3 should use `nb_score`** (or `nb_logit`), not `pred_class`, when stacking with Agent 2.
 
 ---
 

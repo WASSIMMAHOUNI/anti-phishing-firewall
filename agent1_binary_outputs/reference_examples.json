@@ -1,0 +1,52 @@
+[
+  {
+    "email_id": 8,
+    "split": "val",
+    "true_label": 0,
+    "sender": "qydlqcws-iacfym@issues.apache.org",
+    "receiver": "xrh@spamassassin.apache.org",
+    "date": "Tue, 05 Aug 2008 15:31:03 -0800",
+    "subject": "[Bug 5780] URI processing turns uuencoded strings into http URI's which then causes FPs",
+    "nb_score": 0.0001520742268922
+  },
+  {
+    "email_id": 1,
+    "split": "val",
+    "true_label": 1,
+    "sender": "Mok <ipline's1983@icable.ph>",
+    "receiver": "user2.2@gvc.ceas-challenge.cc",
+    "date": "Tue, 05 Aug 2008 18:31:03 -0500",
+    "subject": "Befriend Jenna Jameson",
+    "nb_score": 0.9956541256667404
+  },
+  {
+    "email_id": 2085,
+    "split": "val",
+    "true_label": 1,
+    "sender": "\u65b0\u6865\u5b66\u672f\u7ffb\u8bd1\u673a\u6784 <gzxqfy@163.com>",
+    "receiver": "user7-ext3@gvc.ceas-challenge.cc",
+    "date": "Wed, 06 Aug 2008 09:32:45 +0800",
+    "subject": "",
+    "nb_score": 0.9212947270594046
+  },
+  {
+    "email_id": 19,
+    "split": "val",
+    "true_label": 0,
+    "sender": "Aaron Kulkis <cmiqlkx91@hotpop.com>",
+    "receiver": "opensuse <wkilxloc@opensuse.org>",
+    "date": "Tue, 05 Aug 2008 16:31:41 -0500",
+    "subject": "Re: Fwd: [opensuse] Re: openSUSE Boxed Editions",
+    "nb_score": 0.0013261181659395
+  },
+  {
+    "email_id": 29,
+    "split": "val",
+    "true_label": 1,
+    "sender": "Maryellen Costello <shadiervh97@gillscruisecentre.com>",
+    "receiver": "user7-ext3@gvc.ceas-challenge.cc",
+    "date": "Wed, 06 Aug 2008 05:02:41 +0530",
+    "subject": "MBA-Degreees not for sale- get it.",
+    "nb_score": 0.9321712145649316
+  }
+]
