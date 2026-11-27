@@ -1,7 +1,8 @@
 {
   "model_name": "Agent 3 Meta-Classifier (Logistic Regression)",
   "training_split": "val",
-  "threshold_selection_split": "val",
+  "threshold_selection_method": "fixed_0.5",
+  "threshold_selection_split": null,
   "evaluation_split": "test",
   "best_C": 0.1,
   "coefficients": {
