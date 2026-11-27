@@ -41,6 +41,8 @@ def _make_model_zip_bytes() -> tuple[bytes, str]:
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("config.json", '{"model_type": "distilbert"}')
         zf.writestr("model.safetensors", "dummy-weights")
+        zf.writestr("tokenizer.json", "{}")
+        zf.writestr("tokenizer_config.json", "{}")
     raw = buf.getvalue()
     return raw, hashlib.sha256(raw).hexdigest()
 
@@ -120,6 +122,8 @@ def test_existing_model_reused_without_downloading(tmp_path):
     target_dir.mkdir(parents=True)
     shutil.copy2(_REAL_MODEL_DIR / "config.json", target_dir / "config.json")
     shutil.copy2(_REAL_MODEL_DIR / "model.safetensors", target_dir / "model.safetensors")
+    shutil.copy2(_REAL_MODEL_DIR / "tokenizer.json", target_dir / "tokenizer.json")
+    shutil.copy2(_REAL_MODEL_DIR / "tokenizer_config.json", target_dir / "tokenizer_config.json")
 
     with (
         patch("urllib.request.urlopen") as mock_open,
