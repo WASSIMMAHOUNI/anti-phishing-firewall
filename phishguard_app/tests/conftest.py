@@ -34,11 +34,12 @@ def agent1_adapter():
 @pytest.fixture(scope="session")
 def agent2_adapter(tmp_path_factory):
     from agents.agent2_adapter import Agent2Adapter
-    # Use a path that deliberately doesn't exist to test unavailable path
+    # Use a path that deliberately doesn't exist with auto_download=False to test unavailable path
     missing_dir = tmp_path_factory.mktemp("missing_agent2") / "nonexistent_model"
     return Agent2Adapter(
         model_dir=missing_dir,
         script_dir=_REPO_ROOT,
+        auto_download=False,
     )
 
 

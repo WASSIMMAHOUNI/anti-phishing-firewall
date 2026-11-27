@@ -41,6 +41,7 @@ def orchestrator(tmp_path_factory):
         agent2 = Agent2Adapter(
             model_dir=missing_dir,
             script_dir=P(__file__).parent.parent.parent,
+            auto_download=False,
         )
         agent3 = Agent3Adapter(P(__file__).parent.parent.parent / "agent3_outputs")
 
