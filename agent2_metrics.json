@@ -1,0 +1,56 @@
+{
+  "agent": "Agent 2 - Semantic Text Classification (DistilBERT)",
+  "model_checkpoint": "distilbert-base-uncased",
+  "label_mapping": {"0": "Safe", "1": "Not Safe"},
+  "max_length": 256,
+  "train_samples": 34256,
+  "validation": {
+    "samples": 7340,
+    "accuracy": 0.9950,
+    "precision": 0.9945,
+    "recall": 0.9966,
+    "f1": 0.9955,
+    "fpr": 0.007179,
+    "fnr": 0.003385,
+    "roc_auc": 0.9997,
+    "pr_auc": 0.9998,
+    "confusion_matrix": {
+      "tn": 3181,
+      "fp": 23,
+      "fn": 14,
+      "tp": 4122
+    },
+    "per_source_accuracy": {
+      "CEAS_08": 0.9967,
+      "Nigerian_Fraud": 0.9959,
+      "Nazario": 0.9912,
+      "SpamAssasin": 0.9838
+    }
+  },
+  "test": {
+    "samples": 7343,
+    "status": "held_out_uninspected_until_final_agent3_evaluation",
+    "accuracy": null,
+    "precision": null,
+    "recall": null,
+    "f1": null,
+    "confusion_matrix": null
+  },
+  "baseline_tfidf_validation": {
+    "accuracy": 0.9910,
+    "f1": 0.9920,
+    "fpr": 0.0140,
+    "fnr": 0.0050
+  },
+  "leave_one_source_out_validation": {
+    "held_out_CEAS_08_accuracy": 0.8226,
+    "held_out_SpamAssasin_accuracy": 0.8753
+  },
+  "cpu_latency_ryzen5_4650u": {
+    "mean_ms_per_email": 89.49,
+    "median_ms_per_email": 108.60,
+    "p95_ms_per_email": 128.38,
+    "throughput_emails_per_sec": 11.2,
+    "gpu_required": false
+  }
+}

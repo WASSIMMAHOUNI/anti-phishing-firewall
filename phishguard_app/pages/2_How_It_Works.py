@@ -1,16 +1,30 @@
 """
 PHISHGUARD — How It Works page.
-Explains the system design, decision threshold, label convention, and known limitations.
-All metrics are read from real model files — nothing is hardcoded here.
+Explains the multi-agent architecture, Agent 1 calibration vs Agent 3 threshold,
+fusion weights, offline metrics, and known limitations.
 """
-import os, sys
+import os
+import sys
+
 _APP_DIR = os.path.dirname(os.path.dirname(__file__))
 if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
 
+import pandas as pd
 import streamlit as st
+
 import config
-from ui.components import inject_css, page_header, divider, info_banner, warning_banner
+from ui.components import (
+    divider,
+    info_banner,
+    inject_css,
+    page_header,
+    render_confusion_matrix_chart,
+    render_fusion_weights_chart,
+    render_pipeline_flow,
+    render_shared_test_comparison_chart,
+    render_sidebar,
+)
 
 st.set_page_config(
     page_title=f"How It Works — {config.APP_TITLE}",
@@ -20,188 +34,154 @@ st.set_page_config(
 )
 inject_css()
 
+
 @st.cache_resource(show_spinner=False)
 def get_orchestrator():
     from orchestrator import Orchestrator
     return Orchestrator()
 
+
 orch       = get_orchestrator()
-a1_status  = orch.agent1.status()
-a1_meta    = a1_status.get("meta") or {}
+all_status = orch.get_all_status()
+render_sidebar(all_status)
+
+a1_meta    = all_status["agent1"].get("meta") or {}
+a3_meta    = all_status["agent3"].get("meta") or {}
+a3_cfg     = all_status["agent3"].get("config") or {}
 val_m      = a1_meta.get("validation_metrics", {})
 cv_m       = a1_meta.get("nested_sender_disjoint_metrics", {})
 thresh_inf = a1_meta.get("threshold_info", {})
 libs       = a1_meta.get("libraries", {})
 
-with st.sidebar:
-    st.markdown(
-        f"<h3 style='margin:0'>🛡️ {config.APP_TITLE}</h3>"
-        f"<p style='color:{config.COLORS['text_muted']};margin:0 0 1rem 0'>"
-        f"{config.APP_SUBTITLE}</p>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("---")
-    all_status = orch.get_all_status()
-    for key in ("agent1", "agent2", "agent3"):
-        s    = all_status[key]["status"]
-        icon = {"ready": "🟢", "unavailable": "🟡", "pending": "⚫", "error": "🔴"}.get(s, "⚫")
-        st.markdown(f"{icon} &nbsp;{all_status[key]['name']}", unsafe_allow_html=True)
-    st.markdown("---")
-    st.caption(f"v{config.APP_VERSION} · [GitHub]({config.PROJECT_REPO})")
-
-page_header("📖 How It Works", "Architecture, decision logic, and known limitations.")
+page_header("📖 How It Works", "Multi-agent architecture, calibration, fusion weights, and limitations.")
 
 # ---------------------------------------------------------------------------
-# System diagram (text-based, reflects live status)
+# Visual Pipeline Flow
 # ---------------------------------------------------------------------------
-a2_tag = "READY" if all_status["agent2"]["status"] == "ready" else "UNAVAILABLE"
-a3_tag = "READY" if all_status["agent3"]["status"] == "ready" else "UNAVAILABLE"
-
 st.subheader("System Architecture")
+render_pipeline_flow(all_status)
+
 st.markdown(
-    f"""
-    ```
-    Email Input (headers + body)
-         │
-         ├──► Agent 1 (Header Naive Bayes)     [{all_status["agent1"]["status"].upper()}]
-         │        • Uses: sender, receiver, date, subject
-         │        • Output: nb_score = P(Not Safe)   ← calibrated
-         │
-         ├──► Agent 2 (DistilBERT)             [{a2_tag}]
-         │        • Uses: subject + body (max 256 tokens)
-         │        • Output: text_score = P(Not Safe)
-         │
-         └──► Agent 3 (Logistic Regression)    [{a3_tag}]
-                  • Uses: clipped logits [nb_logit, text_logit]
-                  • Output: final_probability = P(Not Safe), final_class (0=Safe, 1=Not Safe)
-    ```
-    """
+    "| Binary Label | Meaning |\n"
+    "|---|---|\n"
+    "| **0** | **Safe** |\n"
+    "| **1** | **Not Safe** (phishing and spam combined) |\n\n"
+    "Every agent outputs a continuous probability **P(Not Safe) ∈ [0, 1]**. "
+    "Agent 3 converts `nb_score` and `text_score` to clipped logits (`nb_logit`, `text_logit`) "
+    "and applies a fixed **0.50** decision threshold."
 )
 
 divider()
 
 # ---------------------------------------------------------------------------
-# Label convention
+# Calibration vs. Final Threshold
 # ---------------------------------------------------------------------------
-st.subheader("Label Convention")
-st.markdown(
-    "| Value | Meaning |\n"
-    "|-------|---------|\n"
-    "| **0** | Safe |\n"
-    "| **1** | Not Safe (phishing / spam) |\n\n"
-    "Every agent score is **P(Not Safe)**, a float in [0, 1]. "
-    "Higher = more likely malicious."
-)
+st.subheader("Agent 1 Calibration vs. Agent 3 Decision Threshold")
+col_c1, col_c3 = st.columns(2)
+
+with col_c1:
+    st.markdown("**Agent 1 — Log-Odds Temperature Calibration**")
+    if thresh_inf:
+        prob  = thresh_inf.get("threshold_prob", config.THRESHOLD_PROB_DEFAULT)
+        logit = a1_meta.get("threshold_logit", config.THRESHOLD_LOGIT_DEFAULT)
+        rule  = a1_meta.get("decision_rule", "f1_opt")
+        temp  = a1_meta.get("temperature", 0.0)
+        ver   = a1_meta.get("version", "—")
+        st.markdown(
+            f"- **Model version:** `{ver}`\n"
+            f"- **Calibration temperature:** `T = {temp:.4f}` (fitted on inner OOF logits to soften Naive Bayes overconfidence)\n"
+            f"- **Agent 1 reference threshold:** `{rule}` (`logit = {logit:.4f}`, `prob ≈ {prob:.4f}`)\n"
+            f"- **Downstream role:** Passes calibrated `nb_score` to Agent 3; Agent 1's own `pred_class` is **not** used as the final verdict."
+        )
+    else:
+        info_banner("Agent 1 meta file not loaded.")
+
+with col_c3:
+    st.markdown("**Agent 3 — Logistic Regression Fusion**")
+    if a3_meta:
+        coeffs = a3_meta.get("coefficients", {})
+        lt     = a3_cfg.get("logit_transform", {})
+        st.markdown(
+            f"- **Training split:** `{a3_meta.get('training_split', 'val')}` · **Evaluation split:** `{a3_meta.get('evaluation_split', 'test')}`\n"
+            f"- **Preprocessing:** Clipped logit (`eps={lt.get('eps', 1e-6)}`, `clip={lt.get('clip', 10.0)}`) in order `['nb_logit', 'text_logit']`\n"
+            f"- **Final decision threshold:** Fixed `{a3_cfg.get('decision_threshold', 0.5):.2f}` (`threshold_selection_method = {a3_meta.get('threshold_selection_method', 'fixed_0.5')}`)\n"
+            f"- **Regularization:** `C = {a3_meta.get('best_C', 0.1)}`"
+        )
+        if coeffs:
+            render_fusion_weights_chart(coeffs)
+    else:
+        info_banner("Agent 3 metadata not loaded.")
 
 divider()
 
 # ---------------------------------------------------------------------------
-# Agent 1 — decision threshold (read from real meta)
+# Offline Evaluation Charts
 # ---------------------------------------------------------------------------
-st.subheader("Agent 1 — Decision Threshold")
-
-if thresh_inf:
-    prob   = thresh_inf.get("threshold_prob", config.THRESHOLD_PROB_DEFAULT)
-    logit  = a1_meta.get("threshold_logit", config.THRESHOLD_LOGIT_DEFAULT)
-    rule   = a1_meta.get("decision_rule", "f1_opt")
-    temp   = a1_meta.get("temperature", "N/A")
-    ver    = a1_meta.get("version", "N/A")
-    st.markdown(
-        f"- **Model version:** `{ver}`\n"
-        f"- **Calibration temperature:** {temp:.4f}\n"
-        f"- **Decision rule:** `{rule}` — threshold chosen to maximise F1 on the validation set\n"
-        f"- **Threshold (log-odds):** {logit:.4f}\n"
-        f"- **Threshold (probability):** {prob:.4f} ≈ {prob:.1%}\n\n"
-        f"Agent 3 (the meta-classifier) has its own threshold and should be used "
-        f"for final verdicts once it is delivered — do not threshold Agent 1 or 2 scores alone."
-    )
-else:
-    info_banner("Agent 1 meta file not loaded — threshold info unavailable.")
-
-divider()
-
-# ---------------------------------------------------------------------------
-# Agent 1 — real metrics (read from meta)
-# ---------------------------------------------------------------------------
-st.subheader("Agent 1 — Validation Metrics (from agent1_binary_meta.json)")
+st.subheader("Offline Evaluation Metrics")
+tm = a3_meta.get("test_metrics", {})
+if tm:
+    c_test, c_cm = st.columns([3, 2])
+    with c_test:
+        render_shared_test_comparison_chart(tm)
+    with c_cm:
+        cm3 = tm.get("agent3_fusion", {}).get("confusion_matrix")
+        if cm3:
+            render_confusion_matrix_chart(cm3, "Agent 3 Fusion — Test Confusion Matrix (7,343)")
 
 if val_m:
+    st.markdown("**Agent 1 — Validation Split (7,340) vs. Nested Sender-Disjoint CV**")
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown("**Hold-out validation set**")
-        st.markdown(
-            f"| Metric | Value |\n"
-            f"|--------|-------|\n"
-            f"| Accuracy  | {val_m.get('accuracy', '—'):.4f} |\n"
-            f"| Precision | {val_m.get('precision', '—'):.4f} |\n"
-            f"| Recall    | {val_m.get('recall', '—'):.4f} |\n"
-            f"| F1        | {val_m.get('f1', '—'):.4f} |\n"
-            f"| ROC-AUC   | {val_m.get('roc_auc', '—'):.4f} |\n"
-            f"| Log-Loss  | {val_m.get('log_loss', '—'):.4f} |\n"
-            f"| ECE       | {val_m.get('ece', '—'):.4f} |"
+        st.markdown("**Hold-out validation set (7,340 rows)**")
+        st.dataframe(
+            pd.DataFrame([{
+                "Accuracy": f"{val_m.get('accuracy', 0):.4f}",
+                "Precision": f"{val_m.get('precision', 0):.4f}",
+                "Recall": f"{val_m.get('recall', 0):.4f}",
+                "F1": f"{val_m.get('f1', 0):.4f}",
+                "ROC-AUC": f"{val_m.get('roc_auc', 0):.4f}",
+                "Log-Loss": f"{val_m.get('log_loss', 0):.4f}",
+                "ECE": f"{val_m.get('ece', 0):.4f}",
+            }]),
+            use_container_width=True,
+            hide_index=True,
         )
     with col_b:
         st.markdown("**Nested sender-disjoint CV**")
-        st.markdown(
-            f"| Metric | Value |\n"
-            f"|--------|-------|\n"
-            f"| Accuracy  | {cv_m.get('accuracy', '—'):.4f} |\n"
-            f"| Precision | {cv_m.get('precision', '—'):.4f} |\n"
-            f"| Recall    | {cv_m.get('recall', '—'):.4f} |\n"
-            f"| F1        | {cv_m.get('f1', '—'):.4f} |\n"
-            f"| ROC-AUC   | {cv_m.get('roc_auc', '—'):.4f} |\n"
-            f"| Log-Loss  | {cv_m.get('log_loss', '—'):.4f} |\n"
-            f"| ECE       | {cv_m.get('ece', '—'):.4f} |"
+        st.dataframe(
+            pd.DataFrame([{
+                "Accuracy": f"{cv_m.get('accuracy', 0):.4f}",
+                "Precision": f"{cv_m.get('precision', 0):.4f}",
+                "Recall": f"{cv_m.get('recall', 0):.4f}",
+                "F1": f"{cv_m.get('f1', 0):.4f}",
+                "ROC-AUC": f"{cv_m.get('roc_auc', 0):.4f}",
+                "Log-Loss": f"{cv_m.get('log_loss', 0):.4f}",
+                "ECE": f"{cv_m.get('ece', 0):.4f}",
+            }]),
+            use_container_width=True,
+            hide_index=True,
         )
-else:
-    info_banner("Metrics not available — Agent 1 meta file not loaded.")
 
 divider()
 
 # ---------------------------------------------------------------------------
-# Known limitations
+# Known Limitations & Environment
 # ---------------------------------------------------------------------------
 st.subheader("Known Limitations")
-
 st.markdown(
     """
-**Agent 1 (Header Naive Bayes)**
-- **Headers only.** The model sees sender, recipient, date and subject. It has no access to the email body.
-- **Corpus habits.** "Safe" and "Not Safe" examples come partly from different corpora. Some header features
-  may reflect corpus conventions rather than genuine phishing signals.
-- **Compromised accounts.** A malicious email sent from a legitimate, hijacked account will have clean headers
-  and may score low (Safe). Header analysis cannot detect this.
-- **Empty headers → unreliable score.** When all four headers are blank, the model returns nb_score ≈ 0.98
-  with `insufficient_evidence = 1`. The UI displays a warning in this case.
-
-**Agent 2 (DistilBERT)**
-- Truncates input to **256 tokens**; very long emails are truncated.
-- CPU inference is supported without a GPU.
-
-**Agent 3 (Meta-Classifier)**
-- Combines `[nb_score, text_score]` via clipped logits (`eps = 1e-6`, `clip = 10.0`) using Logistic Regression (`C = 0.1`, threshold `0.5`).
-- Requires valid continuous probabilities from both Agent 1 and Agent 2; if either upstream agent fails or is unavailable, no final verdict is produced.
-
-**Experimental System Notice**
-- PHISHGUARD is an experimental academic detection system and may produce false positives or false negatives.
+- **Agent 1 (Headers only):** Sees only `sender`, `receiver`, `date`, `subject`. Compromised legitimate accounts can have clean headers, and empty headers yield `insufficient_evidence = 1` (`nb_score ≈ 0.98` marked unreliable).
+- **Corpus confounding:** Safe and Spam come from `CEAS_08` / `SpamAssasin`, while Phishing comes from `Nazario` / `Nigerian_Fraud`.
+- **Agent 2 (DistilBERT):** Truncates inputs to **256 tokens** (`subject + body`).
+- **Explainability:** Current models output calibrated probabilities without token-level or header-field attributions.
+- **Experimental Notice:** PHISHGUARD is an experimental academic system and may produce false positives or false negatives.
 """
 )
 
-divider()
-
-# ---------------------------------------------------------------------------
-# Environment
-# ---------------------------------------------------------------------------
-st.subheader("Agent 1 Environment")
 if libs:
-    st.markdown(
-        f"| Library | Version |\n"
-        f"|---------|--------|\n"
-        f"| Python     | {libs.get('python', '—')} |\n"
-        f"| numpy      | {libs.get('numpy', '—')} |\n"
-        f"| pandas     | {libs.get('pandas', '—')} |\n"
-        f"| scikit-learn | {libs.get('sklearn', '—')} |\n"
-        f"| scipy      | {libs.get('scipy', '—')} |"
-    )
-else:
-    info_banner("Library versions not available.")
+    with st.expander("Agent 1 & Agent 3 Serialization Environment"):
+        st.markdown(
+            f"Python `{libs.get('python', '—')}` · numpy `{libs.get('numpy', '—')}` · "
+            f"pandas `{libs.get('pandas', '—')}` · scikit-learn `{libs.get('sklearn', '—')}` · "
+            f"scipy `{libs.get('scipy', '—')}`"
+        )

@@ -1,15 +1,25 @@
 """
 PHISHGUARD — About page.
-Project description, dataset info (no fabricated stats), team.
+Project overview, dataset split visualization, live agent inventory, and run guide.
 """
-import os, sys
+import os
+import sys
+
 _APP_DIR = os.path.dirname(os.path.dirname(__file__))
 if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
 
+import pandas as pd
 import streamlit as st
+
 import config
-from ui.components import inject_css, page_header, divider
+from ui.components import (
+    divider,
+    inject_css,
+    page_header,
+    render_dataset_split_chart,
+    render_sidebar,
+)
 
 st.set_page_config(
     page_title=f"About — {config.APP_TITLE}",
@@ -19,88 +29,79 @@ st.set_page_config(
 )
 inject_css()
 
+
 @st.cache_resource(show_spinner=False)
 def get_orchestrator():
     from orchestrator import Orchestrator
     return Orchestrator()
 
+
 orch = get_orchestrator()
+all_status = orch.get_all_status()
+render_sidebar(all_status)
 
-with st.sidebar:
-    st.markdown(
-        f"<h3 style='margin:0'>🛡️ {config.APP_TITLE}</h3>"
-        f"<p style='color:{config.COLORS['text_muted']};margin:0 0 1rem 0'>"
-        f"{config.APP_SUBTITLE}</p>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("---")
-    all_status = orch.get_all_status()
-    for key in ("agent1", "agent2", "agent3"):
-        s    = all_status[key]["status"]
-        icon = {"ready": "🟢", "unavailable": "🟡", "pending": "⚫", "error": "🔴"}.get(s, "⚫")
-        st.markdown(f"{icon} &nbsp;{all_status[key]['name']}", unsafe_allow_html=True)
-    st.markdown("---")
-    st.caption(f"v{config.APP_VERSION} · [GitHub]({config.PROJECT_REPO})")
-
-page_header("ℹ️ About PHISHGUARD")
+page_header("ℹ️ About PHISHGUARD", "Project scope, shared dataset, and live agent inventory.")
 
 st.markdown(
     f"""
-**PHISHGUARD** is a university project implementing a Multi-Agent Anti-Phishing Firewall.
-Three independent ML agents analyse an email and report their probability that it is "Not Safe".
+**PHISHGUARD** is a university machine learning project implementing a **Multi-Agent Anti-Phishing Firewall**
+for binary email classification (**`0 = Safe`**, **`1 = Not Safe`**).
 
 - **Repository:** [{config.PROJECT_REPO}]({config.PROJECT_REPO})
-- **Version:** {config.APP_VERSION}
-- **Stack:** Python 3.13, Streamlit, scikit-learn, (PyTorch / 🤗 Transformers — Agent 2)
+- **Version:** `{config.APP_VERSION}`
+- **Stack:** Python `3.13`, Streamlit, scikit-learn `1.6.1`, PyTorch CPU + 🤗 Transformers (DistilBERT)
 """
 )
 
 divider()
 
-st.subheader("Dataset")
-st.markdown(
-    """
-The model was trained and evaluated on a combined dataset of:
-- **CEAS 2008 Challenge** spam/ham corpus
-- **SpamAssassin** public corpus
+st.subheader("Shared Dataset (`emails_clean.csv`)")
+col_ds1, col_ds2 = st.columns([3, 2])
 
-| Split | Rows |
-|-------|------|
-| Train | 34,256 |
-| Val   | 7,340  |
-| Test  | 7,343  |
-| **Total** | **48,939** |
+with col_ds1:
+    render_dataset_split_chart()
 
-SHA-256 of `emails_clean.csv`:
+with col_ds2:
+    st.markdown(
+        """
+**Source Corpora (48,939 deduplicated emails):**
+- `CEAS_08` (Safe & Spam)
+- `SpamAssasin` (Safe & Spam)
+- `Nazario` (Phishing)
+- `Nigerian_Fraud` (Phishing)
+
+**SHA-256:**
 `95155f7d9ab86220f08a444e37ec2d7b8965ec88ab51834a03544c8894b67d0f`
 
-The dataset CSV is **not** included in the repository (it is in `.gitignore`).
-Only trained model artifacts are committed.
+*(Raw CSVs in `data/` are excluded via `.gitignore`; only trained artifacts are loaded.)*
 """
-)
+    )
 
 divider()
 
-st.subheader("Agent Summary")
-a1_s = "✅ Ready" if all_status["agent1"]["status"] == "ready" else "⚠️ Unavailable"
-a2_s = "✅ Ready" if all_status["agent2"]["status"] == "ready" else "⚠️ Unavailable"
-a3_s = "✅ Ready" if all_status["agent3"]["status"] == "ready" else "⚠️ Unavailable"
-st.markdown(
-    f"""
-| Agent | Method | Input | Status |
-|-------|--------|-------|--------|
-| Agent 1 | Smoothed Categorical Naive Bayes (binary, temperature-calibrated) | Headers (sender, receiver, date, subject) | {a1_s} |
-| Agent 2 | DistilBERT fine-tuned sequence classifier | Subject + body (max 256 tokens) | {a2_s} |
-| Agent 3 | Logistic Regression meta-classifier | Clipped logits `[nb_logit, text_logit]` | {a3_s} |
-"""
-)
+st.subheader("Live Agent Inventory")
+rows = []
+for key, method, inp in [
+    ("agent1", "Smoothed Categorical Naive Bayes (calibrated)", "Headers: sender, receiver, date, subject"),
+    ("agent2", "DistilBERT sequence classifier", "Text: subject + body (max 256 tokens)"),
+    ("agent3", "Logistic Regression meta-classifier", "Clipped logits [nb_logit, text_logit]"),
+]:
+    st_val = all_status[key]["status"]
+    rows.append({
+        "Agent": all_status[key]["name"],
+        "Method": method,
+        "Input": inp,
+        "Status": "Ready" if st_val == "ready" else st_val.capitalize(),
+    })
+st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 divider()
 
-st.subheader("How to Run")
+st.subheader("How to Run Locally")
 st.code(
     "# From the repo root:\n"
-    "pip install -r phishguard_app/requirements_app.txt\n"
+    "pip install torch==2.15.0+cpu --index-url https://download.pytorch.org/whl/cpu\n"
+    "pip install -r phishguard_app/requirements.txt\n"
     "streamlit run phishguard_app/app.py",
     language="bash",
 )

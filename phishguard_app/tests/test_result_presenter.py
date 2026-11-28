@@ -8,9 +8,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from result_presenter import (
+    append_session_history,
     build_agent_breakdown,
     build_detection_indicators,
     build_verdict_summary,
+    compute_session_kpis,
 )
 
 
@@ -107,3 +109,43 @@ def test_agent_breakdown_distinguishes_completed_unavailable_failed():
     assert items[1]["probability"] is None
     assert "OOM" in items[1]["error"]
     assert items[2]["probability"] is None
+
+
+def test_session_history_and_kpis():
+    assert compute_session_kpis([]) == {"total": 0, "safe": 0, "not_safe": 0, "failures": 0}
+
+    hist = []
+    hist = append_session_history(
+        hist,
+        {"subject": "Hello team " + "x" * 80},
+        {
+            "agent1": {"available": True, "status": "completed", "nb_score": 0.1, "duration_ms": 2.0},
+            "agent2": {"available": True, "status": "completed", "text_score": 0.05, "duration_ms": 80.0},
+            "agent3": {"available": True, "status": "completed", "final_probability": 0.02, "final_class": 0, "duration_ms": 1.0},
+        },
+    )
+    hist = append_session_history(
+        hist,
+        {"subject": "URGENT login"},
+        {
+            "agent1": {"available": True, "status": "completed", "nb_score": 0.99, "duration_ms": 2.0},
+            "agent2": {"available": True, "status": "completed", "text_score": 0.99, "duration_ms": 75.0},
+            "agent3": {"available": True, "status": "completed", "final_probability": 0.999, "final_class": 1, "duration_ms": 1.0},
+        },
+    )
+    hist = append_session_history(
+        hist,
+        {"subject": ""},
+        {
+            "agent1": {"available": True, "status": "completed", "nb_score": 0.5, "duration_ms": 1.5},
+            "agent2": {"available": False, "status": "failed", "error": "boom", "duration_ms": 0.5},
+            "agent3": {"available": False, "status": "unavailable", "error": "blocked"},
+        },
+    )
+
+    kpis = compute_session_kpis(hist)
+    assert kpis == {"total": 3, "safe": 1, "not_safe": 1, "failures": 1}
+    assert hist[0]["subject"] == "(no subject)"
+    assert hist[0]["status"] == "Failed"
+    assert hist[2]["subject"].endswith("…")
+    assert hist[2]["duration_ms"] == pytest.approx(83.0)

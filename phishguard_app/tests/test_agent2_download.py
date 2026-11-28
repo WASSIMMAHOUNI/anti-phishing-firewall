@@ -147,3 +147,22 @@ def test_application_startup_with_all_three_agents():
     assert statuses["agent1"]["status"] == "ready"
     assert statuses["agent2"]["status"] == "ready"
     assert statuses["agent3"]["status"] == "ready"
+    assert statuses["agent2"]["meta"] is not None
+    assert statuses["agent2"]["max_length"] == 256
+    assert statuses["agent2"]["tokenizer_loaded"] is True
+    assert statuses["agent2"]["model_loaded"] is True
+
+
+def test_agent2_works_when_metrics_json_absent(tmp_path):
+    script_dir = tmp_path / "scripts"
+    script_dir.mkdir()
+    shutil.copy2(_REPO_ROOT / "text_agent.py", script_dir / "text_agent.py")
+
+    adapter = Agent2Adapter(
+        model_dir=_REAL_MODEL_DIR,
+        script_dir=script_dir,
+        auto_download=False,
+    )
+    s = adapter.status()
+    assert s["status"] == "ready"
+    assert s["meta"] is None

@@ -10,6 +10,7 @@ archive directly to disk from the public GitHub Release v1.0-agent2-model,
 verifies its SHA-256 checksum, and extracts it safely. Never fabricates scores.
 """
 import hashlib
+import json
 import math
 import logging
 import os
@@ -57,6 +58,11 @@ class Agent2Adapter:
         self._expected_sha256 = expected_sha256.lower()
         self._predict_fn      = None
         self._agent           = None
+        self._meta: Optional[Dict[str, Any]] = None
+        self._device: Optional[str]          = None
+        self._tokenizer_loaded: bool         = False
+        self._model_loaded: bool             = False
+        self._max_length: int                = 256
         self._status          = _STATUS_UNAVAILABLE
         self._error: Optional[str] = None
         self._load()
@@ -224,17 +230,39 @@ class Agent2Adapter:
 
             if hasattr(text_agent, "predict_email"):
                 if hasattr(text_agent, "_load_artifacts"):
-                    text_agent._load_artifacts(str(self._model_dir))
+                    tok, mdl, dev = text_agent._load_artifacts(str(self._model_dir))
+                    self._tokenizer_loaded = tok is not None
+                    self._model_loaded     = mdl is not None
+                    self._device           = str(dev) if dev is not None else None
+                else:
+                    self._tokenizer_loaded = True
+                    self._model_loaded     = True
+                self._max_length = int(getattr(text_agent, "MAX_LENGTH", 256))
                 self._predict_fn = text_agent.predict_email
                 self._status = _STATUS_READY
             elif hasattr(text_agent, "TextAgent"):
                 self._agent = text_agent.TextAgent(model_dir=str(self._model_dir))
+                self._tokenizer_loaded = True
+                self._model_loaded     = True
+                self._device           = str(getattr(self._agent, "device", "cpu"))
+                self._max_length       = int(getattr(self._agent, "max_length", 256))
                 self._status = _STATUS_READY
             else:
                 self._error = "text_agent.py exposes neither predict_email nor TextAgent."
+                return
         except Exception as exc:
             self._error = f"Agent 2 load error: {exc}"
             logger.exception("Agent 2 load failed")
+            return
+
+        # 5. Non-fatal optional metadata load
+        meta_path = self._script_dir / "agent2_metrics.json"
+        if meta_path.is_file():
+            try:
+                with open(meta_path, encoding="utf-8") as fh:
+                    self._meta = json.load(fh)
+            except Exception as exc:
+                logger.warning("Could not read Agent 2 metrics JSON: %s", exc)
 
     # ------------------------------------------------------------------
     # Public API
@@ -242,9 +270,14 @@ class Agent2Adapter:
 
     def status(self) -> Dict[str, Any]:
         return {
-            "name":   "Agent 2 — DistilBERT Text Classifier",
-            "status": self._status,
-            "error":  self._error,
+            "name":             "Agent 2 — DistilBERT Text Classifier",
+            "status":           self._status,
+            "error":            self._error,
+            "meta":             self._meta,
+            "device":           self._device,
+            "max_length":       self._max_length,
+            "tokenizer_loaded": self._tokenizer_loaded,
+            "model_loaded":     self._model_loaded,
         }
 
     def run(self, subject: str, body: str) -> Dict[str, Any]:

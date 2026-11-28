@@ -23,6 +23,24 @@ def parse_eml_string(text: str) -> Dict[str, str]:
     return _extract(msg)
 
 
+def extract_html_from_eml_bytes(data: bytes) -> str:
+    """
+    Extract raw text/html parts from a .eml byte payload for display-only
+    link advisory inspection. Does not alter the 5-key email dict used by agents.
+    """
+    msg = BytesParser(policy=policy.default).parsebytes(data)
+    return _extract_html_parts(msg)
+
+
+def extract_html_from_eml_string(text: str) -> str:
+    """
+    Extract raw text/html parts from a .eml string payload for display-only
+    link advisory inspection. Does not alter the 5-key email dict used by agents.
+    """
+    msg = Parser(policy=policy.default).parsestr(text)
+    return _extract_html_parts(msg)
+
+
 def build_manual(
     sender: str,
     receiver: str,
@@ -94,6 +112,30 @@ def _get_body(msg) -> str:
         return content.strip()
     except Exception:
         return ""
+
+
+def _extract_html_parts(msg) -> str:
+    """Collect non-attachment text/html parts without modifying agent inputs."""
+    parts = []
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_disposition() == "attachment":
+                continue
+            if part.get_content_type() == "text/html":
+                try:
+                    content = part.get_content() or ""
+                    if content.strip():
+                        parts.append(content)
+                except Exception:
+                    pass
+    elif msg.get_content_type() == "text/html":
+        try:
+            content = msg.get_content() or ""
+            if content.strip():
+                parts.append(content)
+        except Exception:
+            pass
+    return "\n".join(parts)
 
 
 def _strip_html(html: str) -> str:
