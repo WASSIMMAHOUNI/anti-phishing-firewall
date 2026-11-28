@@ -1,0 +1,50 @@
+[
+  {
+    "email_id": 202,
+    "nb_score": 0.8701715360010776,
+    "text_score": 0.0304485366526448,
+    "agents_disagree": true,
+    "final_probability": 0.0007623131866703424,
+    "final_class": 0
+  },
+  {
+    "email_id": 1,
+    "nb_score": 0.9956541256667404,
+    "text_score": 0.9210828040279714,
+    "agents_disagree": false,
+    "final_probability": 0.9990779756350197,
+    "final_class": 1
+  },
+  {
+    "email_id": 8,
+    "nb_score": 0.0001520742268922,
+    "text_score": 0.079624964590537,
+    "agents_disagree": false,
+    "final_probability": 6.738444994313522e-05,
+    "final_class": 0
+  },
+  {
+    "email_id": 19,
+    "nb_score": 0.0013261181659395,
+    "text_score": 0.0067619794809432,
+    "agents_disagree": false,
+    "final_probability": 7.461254373139669e-07,
+    "final_class": 0
+  },
+  {
+    "email_id": 29,
+    "nb_score": 0.9321712145649316,
+    "text_score": 0.8765364697109674,
+    "agents_disagree": false,
+    "final_probability": 0.9911374279235691,
+    "final_class": 1
+  },
+  {
+    "email_id": 39,
+    "nb_score": 0.9918286965365988,
+    "text_score": 0.9369421602399276,
+    "agents_disagree": false,
+    "final_probability": 0.9992768849446744,
+    "final_class": 1
+  }
+]

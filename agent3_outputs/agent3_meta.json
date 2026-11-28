@@ -1,0 +1,76 @@
+{
+  "model_name": "Agent 3 Meta-Classifier (Logistic Regression)",
+  "training_split": "val",
+  "threshold_selection_method": "fixed_0.5",
+  "threshold_selection_split": null,
+  "evaluation_split": "test",
+  "best_C": 0.1,
+  "coefficients": {
+    "nb_logit": 0.4294824652244424,
+    "text_logit": 2.1374991029607213,
+    "intercept": -0.598023149833563
+  },
+  "test_metrics": {
+    "agent1_alone": {
+      "threshold": 0.5,
+      "accuracy": 0.9478414816832358,
+      "precision": 0.9503478052290717,
+      "recall": 0.957467375543741,
+      "f1": 0.9538943060069821,
+      "roc_auc": 0.9879545689319115,
+      "confusion_matrix": [
+        [
+          2998,
+          207
+        ],
+        [
+          176,
+          3962
+        ]
+      ]
+    },
+    "agent2_alone": {
+      "threshold": 0.5,
+      "accuracy": 0.9878796132370966,
+      "precision": 0.987713803902674,
+      "recall": 0.9908168197196714,
+      "f1": 0.9892628785136929,
+      "roc_auc": 0.9991792518486627,
+      "confusion_matrix": [
+        [
+          3154,
+          51
+        ],
+        [
+          38,
+          4100
+        ]
+      ]
+    },
+    "agent3_fusion": {
+      "threshold": 0.5,
+      "accuracy": 0.990467111534795,
+      "precision": 0.9927325581395349,
+      "recall": 0.9903334944417593,
+      "f1": 0.9915315751270264,
+      "roc_auc": 0.9994015362354466,
+      "confusion_matrix": [
+        [
+          3175,
+          30
+        ],
+        [
+          40,
+          4098
+        ]
+      ]
+    }
+  },
+  "environment": {
+    "python": "3.12.10",
+    "numpy": "2.1.3",
+    "pandas": "2.3.3",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.6.0"
+  }
+}
